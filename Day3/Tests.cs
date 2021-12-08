@@ -1,4 +1,3 @@
-using Day3;
 using FluentAssertions;
 using NUnit.Framework;
 
