@@ -16,7 +16,7 @@ public static class Solution
         var heightsMap = ReadHeightsMap(fileName);
         var lowPoints = GetLowPoints(heightsMap);
 
-        //Find basins doing depth first traversal from the low points until we get boundaries or the height 9
+        //Find basins by breadth-first traversal from the low points until we get boundaries or the height 9
         var basinSizes = new List<int>();
         foreach (var lowPoint in lowPoints)
         {
