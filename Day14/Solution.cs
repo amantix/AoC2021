@@ -5,112 +5,58 @@ public static class Solution
     public static long PartOne(string fileName)
     {
         var (pairCount, rules) = ParseInput(fileName);
-
-        var stepsCount = 10;
-        pairCount = ApplyRules(pairCount, rules, stepsCount);
-
+        pairCount = ApplyRules(pairCount, rules, 10);
         var elementCount = CountElements(pairCount);
-
         return GetMaxMinCountDifference(elementCount);
     }
 
     public static long PartTwo(string fileName)
     {
         var (pairCount, rules) = ParseInput(fileName);
-
-        var stepsCount = 40;
-        pairCount = ApplyRules(pairCount, rules, stepsCount);
-
+        pairCount = ApplyRules(pairCount, rules, 40);
         var elementCount = CountElements(pairCount);
-
         return GetMaxMinCountDifference(elementCount);
     }
 
-    private static (Dictionary<(char left, char right), long> pairCounts, Dictionary<(char left, char right), char> rules) ParseInput(string fileName)
+    private static (Dictionary<string, long> pairCounts, Dictionary<string, string[]> rules)
+        ParseInput(string fileName)
     {
         var input = File.ReadAllLines(fileName);
-        var template = input[0];
-        var pairsCount = new Dictionary<(char left, char right), long>();
-        var rules = new Dictionary<(char left, char right), char>();
-        for (var i = 2; i < input.Length; i++)
-        {
-            var ruleLine = input[i].Split(" -> ", StringSplitOptions.RemoveEmptyEntries).ToArray();
-            rules.Add((ruleLine[0][0], ruleLine[0][1]), ruleLine[1][0]);
-        }
+        var rules = input
+            .Skip(2)
+            .Select(line => line.Split(" -> ", StringSplitOptions.RemoveEmptyEntries))
+            .ToDictionary(line => line[0], line => new[]{$"{line[0][0]}{line[1][0]}", $"{line[1][0]}{line[0][1]}"});
 
-        for (var i = 0; i < template.Length - 1; i++)
-        {
-            var pair = (template[i], template[i + 1]);
-            if (!pairsCount.ContainsKey(pair))
-            {
-                pairsCount.Add(pair, 0);
-            }
-
-            pairsCount[pair]++;
-        }
+        var template = input.First();
+        var pairsCount = Enumerable.Range(0, template.Length - 1)
+            .Select(index => $"{template[index]}{template[index+1]}")
+            .GroupBy(pair => pair)
+            .ToDictionary(group => group.Key, group => group.LongCount());
 
         return (pairsCount, rules);
     }
 
-    private static Dictionary<(char left, char right), long> ApplyRules(
-        Dictionary<(char left, char right), long> pairCount,
-        Dictionary<(char left, char right), char> rules,
+    private static Dictionary<string, long> ApplyRules(
+        Dictionary<string, long> pairCount,
+        Dictionary<string, string[]> rules,
         int stepsCount)
     {
-        for (var i = 0; i < stepsCount; i++)
-        {
-            var nextCount = new Dictionary<(char left, char right), long>(pairCount);
-            foreach (var rule in rules)
-            {
-                if (pairCount.ContainsKey(rule.Key) && pairCount[rule.Key] > 0)
-                {
-                    var insertRight = (rule.Key.left, rule.Value);
-                    var insertLeft = (rule.Value, rule.Key.right);
-                    if (!nextCount.ContainsKey(insertLeft))
-                    {
-                        nextCount.Add(insertLeft, 0);
-                    }
-
-                    if (!nextCount.ContainsKey(insertRight))
-                    {
-                        nextCount.Add(insertRight, 0);
-                    }
-
-                    nextCount[insertLeft] += pairCount[rule.Key];
-                    nextCount[insertRight] += pairCount[rule.Key];
-                    nextCount[rule.Key] -= pairCount[rule.Key];
-                }
-            }
-
-            pairCount = nextCount;
-        }
-
-        return pairCount;
+        return Enumerable.Range(1, stepsCount)
+            .Aggregate(pairCount, (current, _) =>
+                rules
+                    .Where(rule => current.ContainsKey(rule.Key) && current[rule.Key] > 0)
+                    .SelectMany(rule => rule.Value.Select(str => (str, count: current[rule.Key])))
+                    .GroupBy(pair => pair.str)
+                    .ToDictionary(group => group.Key, group => group.Sum(x => x.count))
+            );
     }
 
-    private static Dictionary<char, long> CountElements(Dictionary<(char left, char right), long> pairCount)
+    private static Dictionary<char, long> CountElements(Dictionary<string, long> pairCount)
     {
-        var elementCount = new Dictionary<char, long>();
-        foreach (var pair in pairCount)
-        {
-            var left = pair.Key.left;
-            var right = pair.Key.right;
-            var count = pair.Value;
-            if (!elementCount.ContainsKey(left))
-            {
-                elementCount[left] = 0;
-            }
-
-            if (!elementCount.ContainsKey(right))
-            {
-                elementCount[right] = 0;
-            }
-
-            elementCount[left] += count;
-            elementCount[right] += count;
-        }
-
-        return elementCount;
+        return pairCount
+            .SelectMany(pair => pair.Key.Select(item => (item, count: pair.Value)))
+            .GroupBy(counter => counter.item)
+            .ToDictionary(group => group.Key, group => group.Sum(counter => counter.count));
     }
 
     private static long GetMaxMinCountDifference(Dictionary<char, long> elementCount)
