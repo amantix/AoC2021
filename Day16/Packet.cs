@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Day16;
 
 public class Packet
@@ -11,11 +13,11 @@ public class Packet
     public static Packet Create(string inputBits)
     {
         var rootPacket = new Packet();
-        rootPacket.Version = ParseNumber(inputBits, 3);
+        rootPacket.Version = ParseNumber(inputBits[..3]);
         inputBits = inputBits[3..];
         rootPacket._bitCount += 3;
 
-        rootPacket.Type = (int) ParseNumber(inputBits, 3);
+        rootPacket.Type = (int) ParseNumber(inputBits[..3]);
         inputBits = inputBits[3..];
         rootPacket._bitCount += 3;
 
@@ -32,7 +34,7 @@ public class Packet
             rootPacket._bitCount++;
             if (lengthTypeId == '0') //next 15 bits represent total length in bits of sub-packets
             {
-                var totalLength = (int) ParseNumber(inputBits, 15);
+                var totalLength = (int) ParseNumber(inputBits[..15]);
                 inputBits = inputBits[15..];
                 rootPacket._bitCount += 15;
 
@@ -48,7 +50,7 @@ public class Packet
             }
             else //next 11 bits number of sub-packets contained by this packet
             {
-                var subPacketsNumber = (int) ParseNumber(inputBits, 11);
+                var subPacketsNumber = (int) ParseNumber(inputBits[..11]);
                 inputBits = inputBits[11..];
                 rootPacket._bitCount += 11;
                 for (var i = 0; i < subPacketsNumber; i++)
@@ -66,24 +68,21 @@ public class Packet
         return rootPacket;
     }
 
-    private static long ParseNumber(string bits, int count)
-        => bits.Take(count).Aggregate(0L, (acc, current) => acc << 1 | (uint) (current - '0'));
+    private static long ParseNumber(string bits) => Convert.ToInt64(bits, 2);
 
     private static (long number, int bitsCount) ParseGroupedNumber(string inputBits)
     {
-        var bitsCount = 0;
-        var number = 0L;
+        var bits = new StringBuilder();
+        var index = 0;
         var lastGroup = false;
         while (!lastGroup)
         {
-            lastGroup = inputBits[0] == '0';
-            inputBits = inputBits[1..];
-            number = number << 4 | ParseNumber(inputBits, 4);
-            inputBits = inputBits[4..];
-            bitsCount += 5;
+            lastGroup = inputBits[index++] == '0';
+            bits.Append(inputBits[index..(index + 4)]);
+            index += 4;
         }
 
-        return (number, bitsCount);
+        return (ParseNumber(bits.ToString()), index);
     }
 
     private static readonly Dictionary<int, Func<List<Packet>, long>> OperatorFunctions
